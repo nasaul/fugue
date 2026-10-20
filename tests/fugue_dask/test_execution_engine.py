@@ -447,6 +447,7 @@ def test_map_multi_key_keeps_keys(backend_context):
     df = ArrayDataFrame(data, "a:str,c:int,b:int")
     with fa.engine_context(backend_context.session):
         res = fa.transform(df, _identity, schema="*", partition={"by": ["a", "c"]})
+        assert fa.get_schema(res) == "a:str,c:int,b:int"
         assert _sorted_rows(fa.as_array(res, type_safe=True)) == _sorted_rows(data)
 
 
