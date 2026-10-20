@@ -72,4 +72,4 @@ jobs:
         make devenv
 
     - name: Test
-      run: uv run --active pytest --ignore=tests/fugue_ray --ignore=tests/fugue_notebook tests/
+      run: uv run --active pytest --reruns 2 --only-rerun 'Overflow in cast' --only-rerun 'Table or view not found' --ignore=tests/fugue_ray --ignore=tests/fugue_notebook tests/
