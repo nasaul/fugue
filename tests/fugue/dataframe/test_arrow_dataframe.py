@@ -80,3 +80,21 @@ def test_large_types_are_accepted():
 def test_no_copy_without_large_types():
     t = pa.table({"a": pa.array(["x"], pa.string())})
     assert ArrowDataFrame(t).native is t
+
+
+def _large_table():
+    return pa.table(
+        {
+            "a": pa.array(["x", None], pa.large_string()),
+            "b": pa.array([["y"], None], pa.large_list(pa.large_string())),
+        }
+    )
+
+
+def test_get_schema_large_types():
+    assert fa.get_schema(_large_table()) == "a:str,b:[str]"
+
+
+def test_alter_columns_large_types():
+    res = fa.alter_columns(_large_table(), "a:str")
+    assert fa.get_schema(res) == "a:str,b:[str]"

@@ -8,8 +8,8 @@ from triad.utils.assertion import assert_or_throw
 from triad.utils.pyarrow import (
     LARGE_TYPES_REPLACEMENT,
     cast_pa_table,
-    normalize_large_types,
     pa_table_to_pandas,
+    replace_types_in_schema,
     replace_types_in_table,
 )
 
@@ -48,6 +48,13 @@ from .utils import (
 )
 
 
+# triad workaround: triad Schema/is_supported rejects pyarrow large types
+# (pandas 3 default)
+def _normalize_large_types(df: pa.Table) -> pa.Table:
+    # returns the same object when there is nothing to replace
+    return replace_types_in_table(df, LARGE_TYPES_REPLACEMENT, recursive=True)
+
+
 class ArrowDataFrame(LocalBoundedDataFrame):
     """DataFrame that wraps :func:`pyarrow.Table <pa:pyarrow.table>`. Please also read
     |DataFrameTutorial| to understand this Fugue concept
@@ -79,12 +86,7 @@ class ArrowDataFrame(LocalBoundedDataFrame):
                 schema is None,
                 InvalidOperationError("can't reset schema for pa.Table"),
             )
-            # triad workaround: triad Schema/is_supported rejects pyarrow large
-            # types (pandas 3 default)
-            if normalize_large_types(df.schema) != df.schema:
-                df = replace_types_in_table(
-                    df, LARGE_TYPES_REPLACEMENT, recursive=True
-                )
+            df = _normalize_large_types(df)
             self._native = df
             super().__init__(Schema(df.schema))
             return
@@ -265,6 +267,7 @@ def _pa_table_as_dict_iterable(
 def _pa_table_alter_columns(
     df: pa.Table, columns: Any, as_fugue: bool = False
 ) -> pa.Table:
+    df = _normalize_large_types(df)
     schema = Schema(df.schema)
     new_schema = schema.alter(columns)
     if schema != new_schema:
@@ -314,7 +317,9 @@ def _get_pyarrow_table_columns(df: pa.Table) -> List[Any]:
 
 @get_schema.candidate(lambda df: isinstance(df, pa.Table))
 def _get_pyarrow_table_schema(df: pa.Table) -> Schema:
-    return Schema(df.schema)
+    return Schema(
+        replace_types_in_schema(df.schema, LARGE_TYPES_REPLACEMENT, recursive=True)
+    )
 
 
 @rename.candidate(lambda df, *args, **kwargs: isinstance(df, pa.Table))
