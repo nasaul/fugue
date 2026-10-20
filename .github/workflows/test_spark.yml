@@ -28,6 +28,10 @@ jobs:
         python-version: ["3.11"]
         spark-version: ["3.4.0","3.5.8","4.1.1"]
         pandas-version: ["2.2.0", "2.3.3"]
+        include:
+          - python-version: "3.11"
+            spark-version: "4.1.1"
+            pandas-version: "latest"
 
     steps:
     - name: Clone repo
