@@ -5,7 +5,13 @@ import pyarrow as pa
 from triad.collections.schema import Schema
 from triad.exceptions import InvalidOperationError
 from triad.utils.assertion import assert_or_throw
-from triad.utils.pyarrow import cast_pa_table, pa_table_to_pandas
+from triad.utils.pyarrow import (
+    LARGE_TYPES_REPLACEMENT,
+    cast_pa_table,
+    normalize_large_types,
+    pa_table_to_pandas,
+    replace_types_in_table,
+)
 
 from fugue.dataset.api import (
     as_fugue_dataset,
@@ -73,6 +79,12 @@ class ArrowDataFrame(LocalBoundedDataFrame):
                 schema is None,
                 InvalidOperationError("can't reset schema for pa.Table"),
             )
+            # triad workaround: triad Schema/is_supported rejects pyarrow large
+            # types (pandas 3 default)
+            if normalize_large_types(df.schema) != df.schema:
+                df = replace_types_in_table(
+                    df, LARGE_TYPES_REPLACEMENT, recursive=True
+                )
             self._native = df
             super().__init__(Schema(df.schema))
             return
