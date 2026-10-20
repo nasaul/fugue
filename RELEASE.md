@@ -1,5 +1,12 @@
 # Release Notes
 
+## 0.9.8
+
+-   Added Python 3.15 support
+-   Added pandas 3 support (pandas 2 is still supported below Python 3.15)
+-   Raised the minimum dask version to 2025.12.0
+-   Ray remains unavailable on Python 3.14+
+
 ## 0.9.7
 
 -   Migrated to UV, removed QPD by @goodwanghan
