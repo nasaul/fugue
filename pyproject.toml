@@ -202,6 +202,11 @@ omit = [
 #exclude = [".svc", "CVS", ".bzr", ".hg", ".git", "__pycache__", "venv", "tests/*", "docs/*"]
 #max-complexity = 10
 
+[tool.uv]
+# pyarrow>=26 needs numpy>=2 at import but doesn't declare it; numpy<2 comes
+# from pyspark 3.5 [connect] / pandas 2.2, which only run on python<3.12
+constraint-dependencies = ["pyarrow<26; python_version<'3.12'"]
+
 [tool.ruff]
 line-length = 88
 

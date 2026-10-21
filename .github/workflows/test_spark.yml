@@ -21,26 +21,18 @@ concurrency:
 
 jobs:
   test_combinations:
-    name: Test ${{ matrix.spark }} ${{ matrix.pandas }} Python ${{ matrix.python-version }}
+    name: Test Spark ${{ matrix.spark-version }} Pandas ${{ matrix.pandas-version }} Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    env:
-      UV_NO_SYNC: "1"
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.11"]
-        spark: ["pyspark==3.5.8", "pyspark==4.0.4", "pyspark==4.1.1"]
-        pandas: ["pandas==2.2.0", "pandas==2.3.3"]
+        spark-version: ["3.5.8", "4.0.4", "4.1.1"]
+        pandas-version: ["2.2.0", "2.3.3"]
         include:
-          # numpy<2 (pyspark 3.x [connect], pandas 2.2) breaks pyarrow>=26,
-          # which needs numpy>=2 at import without declaring it
-          - spark: "pyspark==3.5.8"
-            constraints: "pyarrow<26"
-          - pandas: "pandas==2.2.0"
-            constraints: "pyarrow<26"
           - python-version: "3.11"
-            spark: "pyspark"
-            pandas: "pandas"
+            spark-version: "latest"
+            pandas-version: "latest"
 
     steps:
     - name: Clone repo
@@ -59,12 +51,17 @@ jobs:
         cache-dependency-glob: "pyproject.toml"
         python-version: ${{ matrix.python-version }}
 
+    - name: Update Spark
+      if: matrix.spark-version != 'latest'
+      run: uv add "pyspark==${{ matrix.spark-version }}; python_version=='${{ matrix.python-version }}'"
+
+    - name: Update Pandas
+      if: matrix.pandas-version != 'latest'
+      run: uv add "pandas==${{ matrix.pandas-version }}; python_version=='${{ matrix.python-version }}'"
+
     - name: Install dependencies
-      env:
-        CONSTRAINTS: ${{ matrix.constraints }}
       run: |
-        uv pip install -e . -r pyproject.toml --all-extras --group dev "${{ matrix.spark }}" "${{ matrix.pandas }}" $CONSTRAINTS
-        uv pip freeze
+        make devenv upgrade=1
 
     - name: Test
       run: make testspark
@@ -72,8 +69,11 @@ jobs:
   test_connect:
     name: Spark Connect
     runs-on: ubuntu-latest
-    env:
-      UV_NO_SYNC: "1"
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+        spark-version: ["3.5.8", "4.0.4", "4.1.1"]
+        pandas-version: ["2.3.3"]
 
     steps:
     - name: Clone repo
@@ -85,17 +85,23 @@ jobs:
         distribution: temurin
         java-version: "17"
 
-    - name: Setup uv 3.11
+    - name: Setup uv ${{ matrix.python-version }}
       uses: astral-sh/setup-uv@v5
       with:
         enable-cache: false
         cache-dependency-glob: "pyproject.toml"
-        python-version: "3.11"
+        python-version: ${{ matrix.python-version }}
+
+    - name: Set Spark==3.5.8
+      run: uv add "pyspark==3.5.8; python_version=='${{ matrix.python-version }}'"
+
+    - name: Update Pandas
+      if: matrix.pandas-version != 'latest'
+      run: uv add "pandas==${{ matrix.pandas-version }}; python_version=='${{ matrix.python-version }}'"
 
     - name: Install dependencies
       run: |
-        uv pip install -e . -r pyproject.toml --all-extras --group dev "pyspark==3.5.8" "pandas==2.3.3" "pyarrow<26"
-        uv pip freeze
+        make devenv upgrade=1
 
     - name: Test
       run: |
