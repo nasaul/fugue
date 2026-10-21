@@ -1,8 +1,10 @@
+import pytest
+
+pytest.importorskip("ray")
 from typing import Any
 
 import pandas as pd
 import pyarrow as pa
-import pytest
 import ray
 import ray.data as rd
 from pytest import raises
