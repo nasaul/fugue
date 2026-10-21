@@ -116,8 +116,8 @@ dev = [
     "psutil",
     "matplotlib",
     "seaborn",
-    "notebook<7",
-    "jupyter_contrib_nbextensions",
+    "notebook<7; python_version<'3.15'",
+    "jupyter_contrib_nbextensions; python_version<'3.15'",
     "s3fs",
     # Specific versions for compatibility
     "pyspark[connect]",
@@ -205,7 +205,7 @@ omit = [
 [tool.uv]
 # pyarrow>=26 needs numpy>=2 at import but doesn't declare it; numpy<2 comes
 # from pyspark 3.5 [connect] / pandas 2.2, which only run on python<3.12
-constraint-dependencies = ["pyarrow<26; python_version<'3.12'"]
+constraint-dependencies = ["pyarrow<26; python_version<'3.12'", "jupyter-client>=8.6.3; python_version>='3.15'"]
 
 [tool.ruff]
 line-length = 88
