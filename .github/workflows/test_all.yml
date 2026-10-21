@@ -25,11 +25,17 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.15"]
 
     steps:
     - name: Clone repo
       uses: actions/checkout@v5
+
+    - name: Setup Java 17
+      uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: "17"
 
     - name: Setup uv ${{ matrix.python-version }}
       uses: astral-sh/setup-uv@v5
@@ -51,25 +57,3 @@ jobs:
       with:
         fail_ci_if_error: false
         token: ${{ secrets.CODECOV_TOKEN }}
-
-  python_315:
-    name: Tests Python 3.15
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Clone repo
-      uses: actions/checkout@v5
-
-    - name: Setup uv 3.15
-      uses: astral-sh/setup-uv@v5
-      with:
-        enable-cache: false
-        cache-dependency-glob: "pyproject.toml"
-        python-version: "3.15"
-
-    - name: Install dependencies
-      run: |
-        make devenv
-
-    - name: Test
-      run: uv run --active pytest --reruns 2 --only-rerun 'Overflow in cast' --only-rerun 'Table or view not found' --ignore=tests/fugue_ray --ignore=tests/fugue_notebook tests/
