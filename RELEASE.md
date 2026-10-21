@@ -6,6 +6,7 @@
 -   Added pandas 3 support (pandas 2 is still supported below Python 3.15)
 -   Raised the minimum dask version to 2025.12.0
 -   Ray remains unavailable on Python 3.14+
+-   Dropped Spark 3.4 support; Spark 3.5+ is required on Python <=3.11 and Spark 4.0+ on Python 3.12+
 
 ## 0.9.7
 
