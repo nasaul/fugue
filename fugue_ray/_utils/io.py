@@ -158,7 +158,22 @@ class RayIO(object):
         if "file_extensions" not in kwargs:
             kwargs = kwargs.copy()
             kwargs["file_extensions"] = None
-        sdf = rd.read_parquet(p, ray_remote_args=self._remote_args(), **kwargs)
+        # ray 2.57-2.59 DataSourceV2 ignores file_extensions=None (ray#65557,
+        # fixed by ray#65559), so fall back to V1 for this read.
+        # Delete this shim once ray>=2.60 is the floor.
+        use_v1 = (
+            version.parse("2.57") <= RAY_VERSION < version.parse("2.60")
+            and kwargs["file_extensions"] is None
+        )
+        if use_v1:  # pragma: no cover
+            ctx = rd.DataContext.get_current()
+            old = ctx.use_datasource_v2
+            ctx.use_datasource_v2 = False
+        try:
+            sdf = rd.read_parquet(p, ray_remote_args=self._remote_args(), **kwargs)
+        finally:
+            if use_v1:  # pragma: no cover
+                ctx.use_datasource_v2 = old
         if columns is None:
             return RayDataFrame(sdf)
         if isinstance(columns, list):  # column names
