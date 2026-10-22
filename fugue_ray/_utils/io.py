@@ -165,14 +165,14 @@ class RayIO(object):
             version.parse("2.57") <= RAY_VERSION < version.parse("2.60")
             and kwargs["file_extensions"] is None
         )
-        if use_v1:
+        if use_v1:  # pragma: no cover
             ctx = rd.DataContext.get_current()
             old = ctx.use_datasource_v2
             ctx.use_datasource_v2 = False
         try:
             sdf = rd.read_parquet(p, ray_remote_args=self._remote_args(), **kwargs)
         finally:
-            if use_v1:
+            if use_v1:  # pragma: no cover
                 ctx.use_datasource_v2 = old
         if columns is None:
             return RayDataFrame(sdf)
