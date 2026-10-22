@@ -47,23 +47,6 @@ from ._constants import FUGUE_DASK_USE_ARROW
 _DASK_PARTITION_KEY = "__dask_partition_key__"
 
 
-def _restore_keys(
-    pdf: pd.DataFrame, keys: List[str], dtypes: pd.Series
-) -> pd.DataFrame:
-    """pandas 3 groupby.apply drops the grouping columns; rebuild them from
-    the group key (``pdf.name``) and restore the input column order. On pandas 2
-    the keys are present and ``pdf`` is returned unchanged."""
-    if len(keys) == 0 or all(k in pdf.columns for k in keys):
-        return pdf
-    values = pdf.name if isinstance(pdf.name, tuple) else (pdf.name,)
-    pdf = pdf.copy()
-    for k, v in zip(keys, values):
-        pdf[k] = pd.Series([v] * len(pdf), index=pdf.index, dtype=object).astype(
-            dtypes[k]
-        )
-    return pdf[list(dtypes.index)]
-
-
 class DaskSQLEngine(SQLEngine):
     """Dask-sql implementation."""
 
@@ -166,9 +149,6 @@ class DaskMapEngine(MapEngine):
             res = _core_map(pdf)
             return res.astype(output_dtypes)
 
-        def _groupby_map(pdf: pd.DataFrame) -> pd.DataFrame:
-            return _map(_restore_keys(pdf, partition_spec.partition_by, input_dtypes))
-
         def _gp_map(pdf: pd.DataFrame) -> pd.DataFrame:
             if pdf.shape[0] == 0:  # pragma: no cover
                 return PandasDataFrame([], output_schema).as_pandas()
@@ -179,7 +159,6 @@ class DaskMapEngine(MapEngine):
             return res.astype(output_dtypes)
 
         df = self.to_df(df)
-        input_dtypes = df.native.dtypes
         pdf = self.execution_engine.repartition(df, partition_spec)
         if len(partition_spec.partition_by) == 0:
             result = pdf.native.map_partitions(_map, meta=output_dtypes)  # type: ignore
@@ -190,7 +169,7 @@ class DaskMapEngine(MapEngine):
                     sort=False,
                     group_keys=False,
                     dropna=False,
-                ).apply(_groupby_map, meta=output_dtypes)
+                )[list(df.native.columns)].apply(_map, meta=output_dtypes)
             elif partition_spec.algo == "coarse":
                 result = pdf.native.map_partitions(  # type: ignore
                     _map, meta=output_dtypes
@@ -487,7 +466,6 @@ class DaskExecutionEngine(ExecutionEngine):
         )
         d = self.to_df(df).native
         meta = [(d[x].name, d[x].dtype) for x in d.columns]
-        dtypes = d.dtypes
 
         if presort:
             presort = parse_presort_exp(presort)
@@ -495,7 +473,6 @@ class DaskExecutionEngine(ExecutionEngine):
         _presort: IndexedOrderedDict = presort or partition_spec.presort
 
         def _partition_take(partition, n, presort):  # pragma: no cover
-            partition = _restore_keys(partition, partition_spec.partition_by, dtypes)
             assert_or_throw(
                 partition.shape[1] == len(meta),
                 FugueBug("hitting the dask bug where partition keys are lost"),
@@ -538,7 +515,7 @@ class DaskExecutionEngine(ExecutionEngine):
                 )
 
             d = (
-                d.groupby(partition_spec.partition_by, dropna=False)
+                d.groupby(partition_spec.partition_by, dropna=False)[list(d.columns)]
                 .apply(_partition_take, n=n, presort=_presort, meta=meta)
                 .reset_index(drop=True)
             )

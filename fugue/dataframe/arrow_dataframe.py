@@ -5,13 +5,7 @@ import pyarrow as pa
 from triad.collections.schema import Schema
 from triad.exceptions import InvalidOperationError
 from triad.utils.assertion import assert_or_throw
-from triad.utils.pyarrow import (
-    LARGE_TYPES_REPLACEMENT,
-    cast_pa_table,
-    pa_table_to_pandas,
-    replace_types_in_schema,
-    replace_types_in_table,
-)
+from triad.utils.pyarrow import cast_pa_table, pa_table_to_pandas
 
 from fugue.dataset.api import (
     as_fugue_dataset,
@@ -41,18 +35,13 @@ from .api import (
 )
 from .dataframe import DataFrame, LocalBoundedDataFrame, _input_schema
 from .utils import (
+    normalize_large_types_in_schema,
+    normalize_large_types_in_table,
     pa_table_as_array,
     pa_table_as_array_iterable,
     pa_table_as_dict_iterable,
     pa_table_as_dicts,
 )
-
-
-# triad workaround: triad Schema/is_supported rejects pyarrow large types
-# (pandas 3 default)
-def _normalize_large_types(df: pa.Table) -> pa.Table:
-    # returns the same object when there is nothing to replace
-    return replace_types_in_table(df, LARGE_TYPES_REPLACEMENT, recursive=True)
 
 
 class ArrowDataFrame(LocalBoundedDataFrame):
@@ -86,7 +75,7 @@ class ArrowDataFrame(LocalBoundedDataFrame):
                 schema is None,
                 InvalidOperationError("can't reset schema for pa.Table"),
             )
-            df = _normalize_large_types(df)
+            df = normalize_large_types_in_table(df)
             self._native = df
             super().__init__(Schema(df.schema))
             return
@@ -267,7 +256,7 @@ def _pa_table_as_dict_iterable(
 def _pa_table_alter_columns(
     df: pa.Table, columns: Any, as_fugue: bool = False
 ) -> pa.Table:
-    df = _normalize_large_types(df)
+    df = normalize_large_types_in_table(df)
     schema = Schema(df.schema)
     new_schema = schema.alter(columns)
     if schema != new_schema:
@@ -317,9 +306,7 @@ def _get_pyarrow_table_columns(df: pa.Table) -> List[Any]:
 
 @get_schema.candidate(lambda df: isinstance(df, pa.Table))
 def _get_pyarrow_table_schema(df: pa.Table) -> Schema:
-    return Schema(
-        replace_types_in_schema(df.schema, LARGE_TYPES_REPLACEMENT, recursive=True)
-    )
+    return Schema(normalize_large_types_in_schema(df.schema))
 
 
 @rename.candidate(lambda df, *args, **kwargs: isinstance(df, pa.Table))

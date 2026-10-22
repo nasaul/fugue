@@ -461,3 +461,22 @@ def test_take_by_keys_keeps_keys(backend_context):
         assert _sorted_rows(fa.as_array(res, type_safe=True)) == _sorted_rows(
             [["x", 3], [None, 5], ["y", 4]]
         )
+
+
+class _KeyIsNone(Transformer):
+    def get_output_schema(self, df):
+        return "k:str,is_none:bool"
+
+    def transform(self, df):
+        key = self.cursor.key_value_array[0]
+        return ArrayDataFrame([[key, key is None]], self.output_schema)
+
+
+@ft.with_backend("dask")
+def test_partition_missing_string_key_is_none(backend_context):
+    df = ArrayDataFrame([["x", 1], [None, 2]], "k:str,v:int")
+    with fa.engine_context(backend_context.session):
+        res = fa.transform(df, _KeyIsNone, partition={"by": ["k"]})
+        assert _sorted_rows(fa.as_array(res, type_safe=True)) == _sorted_rows(
+            [["x", False], [None, True]]
+        )
